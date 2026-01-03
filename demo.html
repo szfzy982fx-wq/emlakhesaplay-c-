@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emlak Yatırım Analizi | Nakit vs Vadeli</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22;
+            --light: #ecf0f1;
+            --success: #27ae60;
+            --danger: #c0392b;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        h1 {
+            width: 100%;
+            text-align: center;
+            color: var(--primary);
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+        }
+        .input-section, .result-section {
+            flex: 1;
+            min-width: 300px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+        /* type="text" kullandık çünkü noktaları göstereceğiz */
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1.1rem; /* Rakamlar daha okunaklı olsun diye büyüttüm */
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace; /* Rakamlar hizalı dursun */
+            font-weight: bold;
+        }
+        input:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        .hint {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-top: 2px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #34495e;
+        }
+        .result-box {
+            background-color: var(--light);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 5px solid var(--accent);
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+        .result-item strong {
+            color: var(--primary);
+        }
+        .highlight {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-align: center;
+            display: block;
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(230, 126, 34, 0.1);
+            border-radius: 6px;
+        }
+        .verdict {
+            text-align: center;
+            font-weight: bold;
+            padding: 10px;
+            color: white;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        .verdict-vadeli { background-color: var(--success); }
+        .verdict-pesin { background-color: var(--danger); }
+        
+        @media (max-width: 600px) {
+            .container { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gayrimenkul Ödeme Planı Analizörü</h1>
+
+    <div class="input-section">
+        <div class="form-group">
+            <label>Liste Fiyatı (TL)</label>
+            <input type="text" id="listPrice" value="11.205.000" onkeyup="formatCurrency(this)" inputmode="numeric">
+        </div>
+        <div class="form-group">
+            <label>Peşinat Tutarı (TL)</label>
+            <input type="text" id="downPayment" value="5.602.500" onkeyup="formatCurrency(this)" inputmode="numeric">
+        </div>
+        <div class="form-group">
+            <label>Vade Süresi (Ay)</label>
+            <input type="number" id="termMonths" value="15">
+        </div>
+        <div class="form-group">
+            <label>Taksitlere Uygulanan Aylık Faiz (%)</label>
+            <input type="number" id="loanInterest" value="0" step="0.01">
+            <div class="hint">Vade farksız ise 0 yazın.</div>
+        </div>
+        <div class="form-group">
+            <label>Mevduat Faizi (Yıllık %)</label>
+            <input type="number" id="depositInterest" value="45" step="0.5">
+            <div class="hint">Bankanın verdiği yıllık oran.</div>
+        </div>
+        <div class="form-group">
+            <label>Size Sunulan Peşin İndirimi (%)</label>
+            <input type="number" id="currentDiscount" value="10" step="0.1">
+        </div>
+        <button onclick="calculate()">ANALİZ ET</button>
+    </div>
+
+    <div class="result-section" id="results" style="display:none;">
+        <div class="result-box">
+            <h3>Finansal Analiz Sonucu</h3>
+            
+            <div class="result-item">
+                <span>Aylık Taksit Tutarı:</span>
+                <strong id="monthlyPaymentDisplay">0 ₺</strong>
+            </div>
+            <div class="result-item">
+                <span>Peşin Alım Fiyatı (Teklif):</span>
+                <strong id="cashPriceDisplay">0 ₺</strong>
+            </div>
+            <div class="result-item" style="border-top: 1px solid #ccc; padding-top:10px;">
+                <span>Vadeli Alımın Bugünkü Maliyeti (NPV):</span>
+                <strong id="npvDisplay">0 ₺</strong>
+                <div class="hint" style="width:100%; text-align:right;">(Paranın zaman değeri düşülmüş hali)</div>
+            </div>
+
+            <hr>
+            
+            <label style="text-align:center;">OLMASI GEREKEN BAŞABAŞ İNDİRİM</label>
+            <span class="highlight" id="breakEvenDisplay">% 0</span>
+            
+            <div id="verdictBox" class="verdict">
+                Analiz Bekleniyor...
+            </div>
+
+            <p style="font-size:0.9rem; margin-top:15px; color:#555;">
+                <strong>Yorum:</strong> Eğer firmanın sunduğu indirim oranı, yukarıdaki "Olması Gereken" orandan düşükse, paranızı bankada tutup taksitli ödemek daha karlıdır.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Giriş kutusuna yazıldıkça noktaları koyan fonksiyon
+    function formatCurrency(input) {
+        // Mevcut değeri al, noktaları ve sayı olmayan her şeyi temizle
+        let value = input.value.replace(/\D/g, "");
+        
+        // Boşsa işlem yapma
+        if (value === "") {
+            input.value = "";
+            return;
+        }
+
+        // Noktaları ekle (Regex: her 3 basamakta bir nokta koy)
+        input.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    // Hesaplama yaparken noktalı değeri temizleyip sayıya çeviren yardımcı fonksiyon
+    function getCleanNumber(elementId) {
+        const rawValue = document.getElementById(elementId).value;
+        // Noktaları sil, floata çevir. Boşsa 0 döndür.
+        return parseFloat(rawValue.replace(/\./g, '')) || 0;
+    }
+
+    const formatter = new Intl.NumberFormat('tr-TR', {
+        style: 'currency',
+        currency: 'TRY',
+        maximumFractionDigits: 0
+    });
+
+    function calculate() {
+        // Değerleri Al (Noktalı inputlar için özel fonksiyonu kullanıyoruz)
+        const listPrice = getCleanNumber('listPrice');
+        const downPayment = getCleanNumber('downPayment');
+        
+        // Diğerleri standart number input olduğu için direkt alıyoruz
+        const months = parseFloat(document.getElementById('termMonths').value);
+        const loanIntRate = parseFloat(document.getElementById('loanInterest').value) / 100;
+        const depositIntRateYearly = parseFloat(document.getElementById('depositInterest').value);
+        const currentDiscount = parseFloat(document.getElementById('currentDiscount').value);
+
+        // Mevduat Faizini Aylık Net Orana Çevir
+        const monthlyDepositRate = (depositIntRateYearly / 12) / 100;
+
+        // 1. Taksit Tutarını Hesapla
+        const principal = listPrice - downPayment;
+        let monthlyPayment = 0;
+
+        if (loanIntRate === 0) {
+            monthlyPayment = principal / months;
+        } else {
+            // PMT Formülü
+            monthlyPayment = principal * (loanIntRate * Math.pow(1 + loanIntRate, months)) / (Math.pow(1 + loanIntRate, months) - 1);
+        }
+
+        // 2. Vadeli Seçeneğin Bugünkü Değerini (NPV) Hesapla
+        let npv = downPayment;
+        for (let i = 1; i <= months; i++) {
+            npv += monthlyPayment / Math.pow(1 + monthlyDepositRate, i);
+        }
+
+        // 3. Başabaş İndirim Oranını Bul
+        const breakEvenRate = (1 - (npv / listPrice)) * 100;
+
+        // 4. Mevcut Durum Karşılaştırması
+        const offerPrice = listPrice * (1 - (currentDiscount / 100));
+        
+        // Ekrana Yazdır
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('monthlyPaymentDisplay').innerText = formatter.format(monthlyPayment);
+        document.getElementById('cashPriceDisplay').innerText = formatter.format(offerPrice);
+        document.getElementById('npvDisplay').innerText = formatter.format(npv);
+        
+        document.getElementById('breakEvenDisplay').innerText = "% " + breakEvenRate.toFixed(2);
+
+        const verdictBox = document.getElementById('verdictBox');
+        if (currentDiscount < breakEvenRate) {
+            verdictBox.className = "verdict verdict-vadeli";
+            verdictBox.innerHTML = "TAVSİYE: VADELİ ALIN! <br> (Mevcut İndirim Yetersiz)";
+        } else {
+            verdictBox.className = "verdict verdict-pesin";
+            verdictBox.innerHTML = "TAVSİYE: PEŞİN ALIN! <br> (İndirim Oranı Çok İyi)";
+        }
+    }
+    
+    // Sayfa ilk açıldığında varsayılan değerleri formatla
+    window.onload = function() {
+        formatCurrency(document.getElementById('listPrice'));
+        formatCurrency(document.getElementById('downPayment'));
+    };
+</script>
+
+</body>
+</html>
